@@ -5,74 +5,72 @@ const input = await readInput("./input.txt");
 
 type File = { name: string; size: number };
 type Directory = {
-  previous?: Directory;
+  parent?: Directory;
+  /** not needed, but nice for visualization */
   dirName: string;
-  contents: { [key: string]: File | Directory };
+  files: File[];
+  subDirs: Directory[];
   size: number;
 };
 
-const isFile = (f: File | Directory): f is File => {
-  return Object.hasOwn(f, "size") && Object.hasOwn(f, "name");
+const sumSizes = (acc: number, item: Directory | File): number =>
+  acc + item.size;
+
+const sortSize = (a: Directory, b: Directory) => a.size - b.size;
+
+const calculateDirSize = (root: Directory): void => {
+  root.subDirs.forEach(calculateDirSize);
+  root.size += [...root.files, ...root.subDirs].reduce(sumSizes, 0);
 };
 
-const dirSize = (root: Directory): void => {
-  for (const item of Object.values(root.contents)) {
-    if (!isFile(item)) {
-      dirSize(item);
-    }
-    root.size += item.size;
-  }
-};
-
-const buildFS = (input: string[]): Directory => {
-  const root: Directory = { dirName: "/", contents: {}, size: 0 };
-  let wd: Directory = root;
+const buildFs = (input: string[]): Directory => {
+  const root: Directory = { dirName: "/", files: [], subDirs: [], size: 0 };
+  let workingDir: Directory = root;
   for (let i = 1; i < input.length; i++) {
     const line = input[i];
-    if (line === "$ cd ..") {
-      wd = wd.previous!;
+    if (line === "$ cd .." && workingDir.parent) {
+      workingDir = workingDir.parent;
     } else if (line.startsWith("$ cd ")) {
       const dirName = line.slice("$ cd ".length);
-      wd = wd.contents[dirName] as Directory;
+      workingDir = workingDir.subDirs.find((dir) => dir.dirName === dirName)!;
     } else if (/^\d/.test(line)) {
       const [size, name] = line.split(" ");
-      const f: File = { name, size: parseInt(size) };
-      wd.contents[name] = f;
+      workingDir.files.push({ name, size: parseInt(size) });
     } else if (line.startsWith("dir")) {
-      const [_, name] = line.split(" ");
-      wd.contents[name] = {
+      const [, name] = line.split(" ");
+      workingDir.subDirs.push({
         dirName: name,
-        previous: wd,
-        contents: {},
+        parent: workingDir,
+        files: [],
+        subDirs: [],
         size: 0,
-      };
+      });
     }
   }
-  dirSize(root);
+  calculateDirSize(root);
   return root;
 };
 
-const root = buildFS(input);
-const filter =
-  (predicate: (d: Directory) => boolean) =>
-  (d: Directory): Directory[] => {
-    const results: Directory[] = [];
-    if (predicate(d)) {
-      results.push(d);
-    }
-    for (const item of Object.values(d.contents)) {
-      if (!isFile(item)) {
-        results.push(...filter(predicate)(item));
-      }
-    }
-    return results;
-  };
+const filter = (
+  predicate: (d: Directory) => boolean,
+  d: Directory
+): Directory[] => {
+  const results: Directory[] = [];
+  if (predicate(d)) {
+    results.push(d);
+  }
+  for (const item of d.subDirs) {
+    results.push(...filter(predicate, item));
+  }
+  return results;
+};
 
-const filterByDirMaxSize = (maxSize: number) =>
-  filter((d) => d.size <= maxSize);
-const filterByDirMinSize = (minSize: number) =>
-  filter((d) => d.size >= minSize);
+const filterByDirMaxSize = (maxSize: number, dir: Directory) =>
+  filter((d) => d.size <= maxSize, dir);
+const filterByDirMinSize = (minSize: number, dir: Directory) =>
+  filter((d) => d.size >= minSize, dir);
 
+const root = buildFs(input);
 const maxSpace = 70_000_000;
 const updateSize = 30_000_000;
 const unusedSpace = maxSpace - root.size;
@@ -80,9 +78,9 @@ const spaceRequired = updateSize - unusedSpace;
 
 console.log(
   "Solution 1:",
-  filterByDirMaxSize(100_000)(root).reduce((acc, val) => acc + val.size, 0)
+  filterByDirMaxSize(100_000, root).reduce(sumSizes, 0)
 );
 console.log(
   "Solution 2:",
-  filterByDirMinSize(spaceRequired)(root).sort((a, b) => a.size - b.size)[0].size
+  filterByDirMinSize(spaceRequired, root).sort(sortSize)[0].size
 );
