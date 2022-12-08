@@ -6,47 +6,49 @@ const parseInput = (input: string[]): number[][] =>
 const input = parseInput(await readInput("./input.txt"));
 // const input = parseInput(await readInput("./sampleInput.txt"));
 
-const isVisible = (grid: number[][], x: number, y: number): boolean => {
-  if (x === 0 || y === 0) {
-    return true;
-  }
-  // forward row search
-  const fromRight = grid[y]
-    .slice(x + 1)
-    .every((tree) => tree < grid[y][x]);
+type Neighbors = {
+  left: number[];
+  right: number[];
+  top: number[];
+  bottom: number[];
+};
 
-  let fromLeft = true;
-  for (let i = x - 1; i >= 0; i--) {
-    if (grid[y][i] >= grid[y][x]) {
-      fromLeft = false;
-      break;
-    }
-  }
-  let fromBottom = true;
+const getNeighbors = (grid: number[][], x: number, y: number): Neighbors => {
+  const right = grid[y].slice(x + 1);
+  const left = [...grid[y].slice(0, x)].reverse();
+
+  const bottom: number[] = [];
   for (let i = y + 1; i < grid.length; i++) {
-    if (grid[i][x] >= grid[y][x]) {
-      fromBottom = false;
-      break;
-    }
+    bottom.push(grid[i][x]);
   }
-  let fromTop = true;
+  const top: number[] = [];
   for (let i = y - 1; i >= 0; i--) {
-    if (grid[i][x] >= grid[y][x]) {
-      fromTop = false;
-      break;
-    }
+    top.push(grid[i][x]);
   }
   // console.log({fromRight, fromLeft, fromBottom, fromTop})
+  return { left, right, top, bottom };
+};
+
+const isVisible = (
+  targetTree: number,
+  { left, right, top, bottom }: Neighbors
+) => {
+  const _isVisible = (trees: number[]) =>
+    trees.every((tree) => tree < targetTree);
   return (
-    fromRight || fromLeft || fromBottom || fromTop
+    _isVisible(left) ||
+    _isVisible(right) ||
+    _isVisible(top) ||
+    _isVisible(bottom)
   );
 };
 
 const countVisibleTrees = (input: number[][]): number => {
   let visible = 0;
-  for (let i = 0; i < input.length; i++) {
-    for (let j = 0; j < input[i].length; j++) {
-      if (isVisible(input, j, i)) {
+  for (let y = 0; y < input.length; y++) {
+    for (let x = 0; x < input[y].length; x++) {
+      const neighbors = getNeighbors(input, x, y);
+      if (isVisible(input[y][x], neighbors)) {
         visible++;
       }
     }
@@ -54,5 +56,39 @@ const countVisibleTrees = (input: number[][]): number => {
   return visible;
 };
 
+const calcScenicScore = (
+  tree: number,
+  { left, right, top, bottom }: Neighbors
+): number => {
+  const viewingDistance = (line: number[]): number => {
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] >= tree) {
+        return i + 1;
+      }
+    }
+    return line.length;
+  };
+
+  // console.log({left, right, top, bottom})
+  // console.log(viewingDistance(left) , viewingDistance(right) , viewingDistance(top) , viewingDistance(bottom))
+  return (
+    viewingDistance(left) *
+    viewingDistance(right) *
+    viewingDistance(top) *
+    viewingDistance(bottom)
+  );
+};
+
+const findHighestScenicScore = (input: number[][]): number => {
+  let highest = 0;
+  for (let y = 0; y < input.length; y++) {
+    for (let x = 0; x < input[y].length; x++) {
+      const score = calcScenicScore(input[y][x], getNeighbors(input, x, y));
+      highest = Math.max(highest, score);
+    }
+  }
+  return highest;
+};
+
 console.log("Solution 1:", countVisibleTrees(input));
-console.log("Solution 2:");
+console.log("Solution 2:", findHighestScenicScore(input));
