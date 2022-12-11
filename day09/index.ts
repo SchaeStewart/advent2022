@@ -10,8 +10,8 @@ const parseInput = (input: string[]): Instruction[] =>
     return [d as Direction, parseInt(n)];
   });
 
-const input = parseInput(await readInput("./input.txt"));
-// const input = parseInput(await readInput("./sampleInput.txt"));
+// const input = parseInput(await readInput("./input.txt"));
+const input = parseInput(await readInput("./sampleInput.txt"));
 
 const updateTail = (tail: Position, head: Position): Position => {
   let { x, y } = tail;
@@ -53,7 +53,7 @@ const updatePositions = (
   [d, amt]: Instruction,
   head: Position,
   knots: Position[],
-  visited: Set<string>
+  visited: string[] 
 ): [Position, Position[]] => {
   let tail = {...knots[0]}
   for (let i = 0; i < amt; i++) {
@@ -65,22 +65,46 @@ const updatePositions = (
       knots[i] = {...tail}
       h = tail
     }
-    const c = visited.add(key(tail))
+    const c = visited.push(key(tail))
   }
 
   return [head, knots];
 };
 
+const plot = (visited: string[]) => {
+  const parse = (loc: string): Position => {
+    const [xPart, yPart] = loc.split(',')
+    const x = parseInt(xPart.split(":")[1])
+    const y = parseInt(yPart.split(":")[1])
+    return {x, y}
+  }
+
+  const size = 26 
+  const grid = new Array(size).fill('.'.repeat(size).split(""))
+  const xStart = size/2
+  const yStart = size/2 
+  for (const loc of visited) {
+    const {x, y} = parse(loc)
+    console.log({x,y})
+    grid[y][x] = "#"
+  }
+
+  // console.log(grid.map(line => line.join("")).join("\n"))
+  console.log(grid)
+
+}
+
 const countVisitedByTail = (instructions: Instruction[], knotCount: number) => {
   let head: Position = { x: 0, y: 0 };
   let knots: Position[] = new Array(knotCount).fill({ x: 0, y: 0 });
-  const visited = new Set<string>([key(head)]);
+  const visited: string[] = [key(head)]
   for (const ins of instructions) {
     [head, knots] = updatePositions(ins, head, knots, visited);
   }
 
-  return visited.size;
+  plot(visited)
+  return new Set(visited).size;
 };
 
 console.log("Part 1", countVisitedByTail(input, 1));
-console.log("Part 2", countVisitedByTail(input, 9));
+// console.log("Part 2", countVisitedByTail(input, 9));
