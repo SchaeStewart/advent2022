@@ -1,7 +1,7 @@
 import { readInput } from "../readInput.ts";
 
-// const raw = await readInput("./input.txt");
-const raw = await readInput("./sampleInput.txt");
+const raw = await readInput("./input.txt");
+// const raw = await readInput("./sampleInput.txt");
 
 type NestedNumArray = number | Array<number | number[] | NestedNumArray>;
 type Packet = {
@@ -23,27 +23,28 @@ const parseInput = (input: string[]): Packet[] => {
 
 const isPacketOrdered = (packet: Packet): boolean => {
   const compare = (l?: NestedNumArray, r?: NestedNumArray): boolean | null => {
-    if (!l) {
+    if (l === undefined) {
       return true;
-    } else if (!r) {
+    } else if (r === undefined) {
       return false;
+    } else if (Array.isArray(l) && l.length === 0) {
+      return true;
+    } else if (Array.isArray(r) && r.length === 0) {
+      return false;
+    } else if (typeof l === "number" && typeof r !== "number") {
+      return compare([l], r);
+    } else if (typeof r === "number" && typeof l !== "number") {
+      return compare(l, [r]);
     } else if (Array.isArray(l) && Array.isArray(r)) {
-      if (l.length === 0) {
-        return true;
-      } else if (r.length === 0) {
-        false;
-      }
-      const result = compare(l[0], r[0]);
+      const result = compare(l.at(0), r.at(0));
       if (result === null) {
         return compare(l.slice(1), r.slice(1));
-      } else {
-        return result;
       }
+      return result;
     } else if (!Array.isArray(l) && !Array.isArray(r)) {
       return l < r ? true : l > r ? false : null;
-    } else {
-      return typeof l === "number" ? compare([l], r) : compare(l, [r]);
     }
+    throw new Error("unreachable");
   };
   for (let i = 0; i < Math.max(packet.left.length, packet.right.length); i++) {
     const [l, r] = [packet.left[i], packet.right[i]];
@@ -67,7 +68,7 @@ const findRightOrder = (packets: Packet[]): number => {
   return rightOrder.reduce((acc, val) => acc + val, 0);
 };
 
-// console.log(isPacketOrdered(parseInput(raw)[5]));
+// console.log(isPacketOrdered(parseInput(raw)[13]));
 
 console.log("Part 1", findRightOrder(parseInput(raw)));
 // console.log("Part 2", trail(buildBackwardGraph(parseInput(raw))));
