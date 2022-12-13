@@ -1,4 +1,5 @@
 import { readInput } from "../readInput.ts";
+import { chunk } from "https://deno.land/std@0.167.0/collections/chunk.ts";
 
 type NestedNumArray = number | Array<number | number[] | NestedNumArray>;
 type Packet = {
@@ -6,25 +7,11 @@ type Packet = {
   right: NestedNumArray[];
 };
 
-const parseIntoPackets = (input: string[]): Packet[] => {
-  const packets: Packet[] = [];
-  for (let i = 0; i < input.length; i += 3) {
-    const p: Packet = {
-      left: JSON.parse(input[i]),
-      right: JSON.parse(input[i + 1]),
-    };
-    packets.push(p);
-  }
-  return packets;
-};
+const parse = (input: string[]): NestedNumArray[][] =>
+  input.filter((line) => line.startsWith("[")).map((line) => JSON.parse(line));
 
-const parse = (input: string[]): NestedNumArray[][] => {
-  return [
-    ...input
-      .filter((line) => line.startsWith("["))
-      .map((line) => JSON.parse(line)),
-  ];
-};
+const parseIntoPackets = (input: NestedNumArray[][]): Packet[] =>
+  chunk(input, 2).map(([left, right]): Packet => ({ left, right }));
 
 const isPacketOrdered = (packet: Packet): boolean => {
   const compare = (l?: NestedNumArray, r?: NestedNumArray): boolean | null => {
@@ -49,60 +36,38 @@ const isPacketOrdered = (packet: Packet): boolean => {
         return compare(l.slice(1), r.slice(1));
       }
       return result;
-    } else if (!Array.isArray(l) && !Array.isArray(r)) {
+    } else {
       return l < r ? true : l > r ? false : null;
     }
-    throw new Error("unreachable");
   };
-  for (let i = 0; i < Math.max(packet.left.length, packet.right.length); i++) {
-    const [l, r] = [packet.left[i], packet.right[i]];
-    const result = compare(l, r);
-    if (result !== null) {
-      return result;
-    }
+  const result = compare(packet.left[0], packet.right[0]);
+  if (result !== null) {
+    return result;
   }
-  return false;
+  return isPacketOrdered({
+    left: packet.left.slice(1),
+    right: packet.right.slice(1),
+  });
 };
 
-const countCorrectOrder = (packets: Packet[]): number => {
-  const rightOrder: number[] = [];
-  for (let i = 0; i < packets.length; i++) {
-    if (isPacketOrdered(packets[i])) {
-      rightOrder.push(i + 1);
-    }
-  }
-
-  return rightOrder.reduce((acc, val) => acc + val, 0);
-};
+const countCorrectOrder = (packets: Packet[]): number =>
+  packets
+    .map((packet) => isPacketOrdered(packet))
+    .reduce((acc, isOrdered, i) => (isOrdered ? acc + i + 1 : acc), 0);
 
 const reOrderPackets = (
   packets: NestedNumArray[][],
-  dividerPackets = [[[2]], [[6]]]
-) => {
-  let changed = true;
-  packets.push(...dividerPackets);
-  while (changed) {
-    changed = false;
-    for (let i = 0; i < packets.length - 1; i++) {
-      if (!isPacketOrdered({ left: packets[i], right: packets[i + 1] })) {
-        let tmp = packets[i];
-        packets[i] = packets[i + 1];
-        packets[i + 1] = tmp;
-        changed = true;
-      }
-    }
-  }
-  return packets.reduce(
-    (acc, p, i) =>
-      dividerPackets.some((div) => JSON.stringify(div) === JSON.stringify(p))
-        ? acc * (i + 1)
-        : acc,
-    1
-  );
-};
+  dividerPackets: NestedNumArray[][] = [[[2]], [[6]]]
+) =>
+  [...dividerPackets, ...packets]
+    .sort((left, right) => (isPacketOrdered({ left, right }) ? -1 : 1))
+    .reduce(
+      (acc, p, i) => (dividerPackets.includes(p) ? acc * (i + 1) : acc),
+      1
+    );
 
-const raw = await readInput("./input.txt");
-// const raw = await readInput("./sampleInput.txt");
+const input = parse(await readInput("./input.txt"));
+// const input = parse(await readInput("./sampleInput.txt"));
 
-console.log("Part 1", countCorrectOrder(parseIntoPackets(raw)));
-console.log("Part 2", reOrderPackets(parse(raw)));
+console.log("Part 1", countCorrectOrder(parseIntoPackets(input)));
+console.log("Part 2", reOrderPackets(input));
