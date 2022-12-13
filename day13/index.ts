@@ -1,15 +1,12 @@
 import { readInput } from "../readInput.ts";
 
-const raw = await readInput("./input.txt");
-// const raw = await readInput("./sampleInput.txt");
-
 type NestedNumArray = number | Array<number | number[] | NestedNumArray>;
 type Packet = {
   left: NestedNumArray[];
   right: NestedNumArray[];
 };
 
-const parseInput = (input: string[]): Packet[] => {
+const parseIntoPackets = (input: string[]): Packet[] => {
   const packets: Packet[] = [];
   for (let i = 0; i < input.length; i += 3) {
     const p: Packet = {
@@ -19,6 +16,14 @@ const parseInput = (input: string[]): Packet[] => {
     packets.push(p);
   }
   return packets;
+};
+
+const parse = (input: string[]): NestedNumArray[][] => {
+  return [
+    ...input
+      .filter((line) => line.startsWith("["))
+      .map((line) => JSON.parse(line)),
+  ];
 };
 
 const isPacketOrdered = (packet: Packet): boolean => {
@@ -38,6 +43,9 @@ const isPacketOrdered = (packet: Packet): boolean => {
     } else if (Array.isArray(l) && Array.isArray(r)) {
       const result = compare(l.at(0), r.at(0));
       if (result === null) {
+        if (l.slice(1).length === 0 && r.slice(1).length === 0) {
+          return null;
+        }
         return compare(l.slice(1), r.slice(1));
       }
       return result;
@@ -56,7 +64,7 @@ const isPacketOrdered = (packet: Packet): boolean => {
   return false;
 };
 
-const findRightOrder = (packets: Packet[]): number => {
+const countCorrectOrder = (packets: Packet[]): number => {
   const rightOrder: number[] = [];
   for (let i = 0; i < packets.length; i++) {
     if (isPacketOrdered(packets[i])) {
@@ -64,11 +72,37 @@ const findRightOrder = (packets: Packet[]): number => {
     }
   }
 
-  console.log(rightOrder);
   return rightOrder.reduce((acc, val) => acc + val, 0);
 };
 
-// console.log(isPacketOrdered(parseInput(raw)[13]));
+const reOrderPackets = (
+  packets: NestedNumArray[][],
+  dividerPackets = [[[2]], [[6]]]
+) => {
+  let changed = true;
+  packets.push(...dividerPackets);
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < packets.length - 1; i++) {
+      if (!isPacketOrdered({ left: packets[i], right: packets[i + 1] })) {
+        let tmp = packets[i];
+        packets[i] = packets[i + 1];
+        packets[i + 1] = tmp;
+        changed = true;
+      }
+    }
+  }
+  return packets.reduce(
+    (acc, p, i) =>
+      dividerPackets.some((div) => JSON.stringify(div) === JSON.stringify(p))
+        ? acc * (i + 1)
+        : acc,
+    1
+  );
+};
 
-console.log("Part 1", findRightOrder(parseInput(raw)));
-// console.log("Part 2", trail(buildBackwardGraph(parseInput(raw))));
+const raw = await readInput("./input.txt");
+// const raw = await readInput("./sampleInput.txt");
+
+console.log("Part 1", countCorrectOrder(parseIntoPackets(raw)));
+console.log("Part 2", reOrderPackets(parse(raw)));
