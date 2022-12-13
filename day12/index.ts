@@ -1,112 +1,103 @@
 import { readInput } from "../readInput.ts";
+import { BinaryHeap } from "https://deno.land/std@0.167.0/collections/binary_heap.ts";
 
-// const raw = await readInput("./input.txt");
-const raw = await readInput("./sampleInput.txt");
+const raw = await readInput("./input.txt");
+// const raw = await readInput("./sampleInput.txt");
 
 const parseInput = (input: string[]): string[][] => {
   return input.map((line) => line.split(""));
 };
 
 type Graph = {
-  // n?: Graph;
-  // s?: Graph;
-  // w?: Graph;
-  // e?: Graph;
   vertices: Graph[];
   value: number;
   x: number;
   y: number;
-  visited: boolean;
-  end: boolean;
+  loc: string;
+  distance: number;
 };
 
-const key = ({ x, y }: { x: number; y: number }) => `x:${x}|y:${y}`;
-const buildGraph = (input: string[][]): Graph => {
+const key = ({ x, y }: { x: number; y: number }) => `x:${x}->y:${y}`;
+let end: string;
+let start: string;
+const buildGraph = (input: string[][]): Map<string, Graph> => {
   const m = new Map<string, Graph>();
   for (let y = 0; y < input.length; y++) {
     for (let x = 0; x < input[y].length; x++) {
       const v = input[y][x];
       const g: Graph = {
-        value: v === "S" ? 1 : v === "E" ? 27 : v.charCodeAt(0) - 96,
+        value: v === "S" ? 0 : v === "E" ? 26 : v.charCodeAt(0) - 96,
         x: x,
         y: y,
-        visited: false,
+        loc: key({ x, y }),
         vertices: [],
-        end: v === "E",
+        distance: v === "S" ? 0 : Number.MAX_SAFE_INTEGER,
       };
-      m.set(key(g), g);
+      if (v === "E") {
+        end = g.loc;
+      }
+      if (v === "S") {
+        start = g.loc;
+      }
+      m.set(g.loc, g);
     }
   }
 
   for (const g of m.values()) {
+    if (g.loc === end) {
+      continue;
+    }
     // check all cardinal dir values.
-    const n = m.get(key({ ...g, y: g.y - 1 }));
-    if (n && Math.abs(g.value - n.value) <= 1) {
-      g.vertices.push(n);
+    const north = m.get(key({ ...g, y: g.y - 1 }));
+    if (north && north.value - g.value <= 1) {
+      g.vertices.push(north);
     }
-    const s = m.get(key({ ...g, y: g.y + 1 }));
-    if (s && Math.abs(g.value - s.value) <= 1) {
-      g.vertices.push(s);
+    const south = m.get(key({ ...g, y: g.y + 1 }));
+    if (south && south.value - g.value <= 1) {
+      g.vertices.push(south);
     }
-    const e = m.get(key({ ...g, x: g.x + 1 }));
-    if (e && Math.abs(g.value - e.value) <= 1) {
-      g.vertices.push(e);
+    const east = m.get(key({ ...g, x: g.x + 1 }));
+    if (east && east.value - g.value <= 1) {
+      g.vertices.push(east);
     }
-    const w = m.get(key({ ...g, x: g.x - 1 }));
-    if (w && Math.abs(g.value - w.value) <= 1) {
-      g.vertices.push(w);
+    const west = m.get(key({ ...g, x: g.x - 1 }));
+    if (west && west.value - g.value <= 1) {
+      g.vertices.push(west);
     }
   }
-  const g = m.get(key({ x: 0, y: 0 }));
-  if (!g) {
-    throw new Error("no graph!");
-  }
-  return g;
+  return m;
 };
 
-type QueueItem = {
-  distance: number;
-  g: Graph;
-  previous?: Graph;
-};
-const queueItemFromGraph =
-  (distance: number, previous?: Graph) =>
-  (g: Graph): QueueItem => ({
-    distance: 1 + distance,
-    g,
-    previous,
+const traverse = (map: Map<string, Graph>): number => {
+  const visited = new Set<string>();
+  const order: string[] = [];
+  const queue = new BinaryHeap<Graph>((a, b) => {
+    if (a.distance >= b.distance) {
+      return 1;
+    } else {
+      return -1;
+    }
   });
-const updateQueue = (v: Graph[], q: QueueItem[], currDistance: number) => {
-  q.push(...v.map(queueItemFromGraph(currDistance, g)));
-  //.sort((a, b) => a.distance - b.distance);
-};
-
-const traverse = (g: Graph) => {
-  let queue: QueueItem[] = [];
-  updateQueue(
-    g.vertices.filter((vg) => vg !== g),
-    queue,
-    0
-  );
-  let curr: { distance: number; g: Graph } | undefined = queue.shift()!;
-  let i = 0;
-  while (curr) {
-    if (curr.g.end) {
-      return curr.distance + 1;
+  queue.push(map.get(start)!);
+  while (queue.length > 0) {
+    const g = queue.pop()!;
+    const step = g.distance + 1;
+    for (const v of g.vertices) {
+      const n = map.get(key(v));
+      if (n && !visited.has(key(n)) && n.distance > step) {
+        n.distance = step;
+        if (n.loc !== end) {
+          queue.push(n);
+        }
+      }
     }
-    updateQueue(
-      curr.g.vertices.filter((vg) => vg !== curr!.g) || [],
-      queue,
-      curr?.distance || Infinity
-    );
-    curr = queue.shift();
-    i++;
-    if (i === 2) {
-      break;
-    }
+    visited.add(g.loc);
+    order.push(g.loc);
   }
-  console.log({ queue: queue.map((q) => ({ x: q.g.x, y: q.g.y })), curr, g });
-  return -1;
+  // console.log(JSON.stringify(order, null, 2));
+  console.log({ start, end });
+  console.log(map.get(key({ x: 43, y: 20 })));
+  return map.get(end)?.distance || -1;
 };
 
 const g = buildGraph(parseInput(raw));
