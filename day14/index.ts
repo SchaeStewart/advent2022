@@ -92,15 +92,51 @@ const simulateWhile = (grid: Map<string, string>): number => {
   while (didPlace) {
     i++;
     didPlace = simulateSand(grid, { x: 500, y: 0 });
-    console.log({ grid, i });
+    console.log({ i });
   }
   return i;
 };
 
-const input = buildGrid(parse(await readInput("./input.txt")));
-// const input = buildGrid(parse(await readInput("./sampleInput.txt")));
-simulateWhile(input);
-console.log(input);
+const findFloor = (lines: Line[]): number => {
+  const maxY = Math.max(
+    ...lines
+      .reduce((acc, line) => [...acc, ...line], [])
+      .map((point) => point.y)
+  );
+  return maxY + 2;
+};
+
+// const simulateWithFloor = (
+//   grid: Map<string, string>,
+//   start: Point,
+//   floor: number
+// ) => {
+//   let loc = { ...start };
+//   while (true) {
+//     const y = loc.y + 1;
+//     if (y === floor) {
+//       // do nothing?
+//     }
+//     const xs = [loc.x, loc.x - 1, loc.x + 1];
+//     const [next, nextL, nextR] = xs.map((x) => grid.get(key({ x, y })));
+//   }
+// };
+
+const addFloor = (grid: Map<string, string>, floorY: number) => {
+  const points = pointsBetween({ x: 0, y: floorY }, { x: 1000, y: floorY });
+  for (const p of points) {
+    grid.set(key(p), "#");
+  }
+};
+
+// const lines = parse(await readInput("./sampleInput.txt"));
+const lines = parse(await readInput("./input.txt"));
+const grid = buildGrid(lines);
+addFloor(grid, findFloor(lines.lines));
+simulateWhile(grid);
+
+// simulateWhile(grid); // loops infinitely
+// simulateWithFloor(grid, { x: 500, y: 0 }, findFloor(lines.lines));
 
 // console.log("Part 1", countCorrectOrder(parseIntoPackets(input)));
 // console.log("Part 2", reOrderPackets(input));
