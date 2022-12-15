@@ -14,7 +14,11 @@ type Sensor = {
 const manhattanDistance = (a: Point, b: Point): number =>
   Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
-const findLimits = (p: Point, mDist: number, targetRow: number) => {
+const findLimits = (
+  p: Point,
+  mDist: number,
+  targetRow: number
+): [number, number] => {
   const a = p.x - Math.abs(mDist - Math.abs(p.y - targetRow));
   const b = p.x + Math.abs(mDist - Math.abs(p.y - targetRow));
   return [Math.min(a, b), Math.max(a, b)];
@@ -43,15 +47,11 @@ const parse = (input: string[]) => {
     );
 };
 
-// const sensors = parse(await readInput("./sampleInput.txt"));
-// const targetRow = 10;
-const sensors = parse(await readInput("./input.txt"));
-const targetRow = 2_000_000;
 const isSensorInRangeOfY = (y: number) => (s: Sensor) =>
   (s.loc.y <= y && s.loc.y + s.manhattan >= y) ||
   (s.loc.y >= y && s.manhattan <= y);
 
-const countOfPointsWithoutBeacons = (sensors: Sensor[], targetRow: number) => {
+const countOfPointsWithBeacons = (sensors: Sensor[], targetRow: number) => {
   const sensorsInRangeOfTarget = sensors.filter(isSensorInRangeOfY(targetRow));
   let count = -[
     new Set([...sensors.filter((sensors) => sensors.beacon.y === targetRow)]),
@@ -77,8 +77,56 @@ const countOfPointsWithoutBeacons = (sensors: Sensor[], targetRow: number) => {
       count++;
     }
   }
+  // console.log({ minX, maxX, diff: Math.abs(Math.abs(minX - maxX) - count) });
   return count;
 };
 
-console.log("Part 1", countOfPointsWithoutBeacons(sensors, targetRow));
-// console.log("Part 2", reOrderPackets(input));
+const part2 = (sensors: Sensor[], maxCoordinate: number) => {
+  for (let y = 0; y < maxCoordinate; y++) {
+    const intervals: [number, number][] = [];
+    for (const sensor of sensors) {
+      const minDistance = manhattanDistance(sensor.loc, {
+        x: sensor.loc.x,
+        y,
+      });
+      if (minDistance <= sensor.manhattan) {
+        const distanceAroundSensorX = sensor.manhattan - minDistance;
+        intervals.push([
+          sensor.loc.x - distanceAroundSensorX,
+          sensor.loc.x + distanceAroundSensorX,
+        ]);
+      }
+    }
+    intervals.sort(([a], [b]) => a - b);
+    for (let i = 1; i < intervals.length; i++) {
+      if (intervals[i - 1][1] >= intervals[i][0]) {
+        intervals[i - 1][1] = Math.max(intervals[i - 1][1], intervals[i][1]);
+        intervals.splice(i, 1);
+        i--;
+      }
+    }
+
+    const res = [];
+    for (const l of intervals) {
+      if (l[0] > maxCoordinate || 0 > l[1]) {
+        continue;
+      }
+      res.push([Math.max(l[0], 0), Math.min(l[1], maxCoordinate)]);
+    }
+
+    if (res.length > 1) {
+      const x = res[0][1] + 1;
+      return x * 4_000_000 + y;
+    }
+  }
+};
+
+// const sensors = parse(await readInput("./sampleInput.txt"));
+// const targetRow = 10;
+// const rowLimit = 20;
+const sensors = parse(await readInput("./input.txt"));
+const targetRow = 2_000_000;
+const rowLimit = 4_000_000;
+
+console.log("Part 1", countOfPointsWithBeacons(sensors, targetRow));
+console.log("Part 2", part2(sensors, rowLimit));
