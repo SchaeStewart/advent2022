@@ -5,8 +5,6 @@ type Point = {
   y: number;
 };
 
-const key = (p: Point) => `${p.x},${p.y}`;
-
 type Sensor = {
   loc: Point;
   beacon: Point;
@@ -53,35 +51,34 @@ const isSensorInRangeOfY = (y: number) => (s: Sensor) =>
   (s.loc.y <= y && s.loc.y + s.manhattan >= y) ||
   (s.loc.y >= y && s.manhattan <= y);
 
-const sensorsInRangeOfTarget = sensors.filter(isSensorInRangeOfY(targetRow));
-let count = -[
-  new Set([...sensors.filter((sensors) => sensors.beacon.y === targetRow)]),
-].length;
-const minX = Math.min(
-  ...sensorsInRangeOfTarget.map(
-    (s) => findLimits(s.loc, s.manhattan, targetRow)[0]
-  )
-);
-const maxX = Math.max(
-  ...sensorsInRangeOfTarget.map(
-    (s) => findLimits(s.loc, s.manhattan, targetRow)[1]
-  )
-);
-console.log(count);
-for (let x = minX; x <= maxX; x++) {
-  const p: Point = { x, y: targetRow };
-  if (
-    sensorsInRangeOfTarget.some((sensor) => {
-      const mDist = manhattanDistance(p, sensor.loc);
-      return sensor.manhattan >= mDist;
-    })
-  ) {
-    count++;
+const countOfPointsWithoutBeacons = (sensors: Sensor[], targetRow: number) => {
+  const sensorsInRangeOfTarget = sensors.filter(isSensorInRangeOfY(targetRow));
+  let count = -[
+    new Set([...sensors.filter((sensors) => sensors.beacon.y === targetRow)]),
+  ].length;
+  const minX = Math.min(
+    ...sensorsInRangeOfTarget.map(
+      (s) => findLimits(s.loc, s.manhattan, targetRow)[0]
+    )
+  );
+  const maxX = Math.max(
+    ...sensorsInRangeOfTarget.map(
+      (s) => findLimits(s.loc, s.manhattan, targetRow)[1]
+    )
+  );
+  for (let x = minX; x <= maxX; x++) {
+    const p: Point = { x, y: targetRow };
+    if (
+      sensorsInRangeOfTarget.some((sensor) => {
+        const mDist = manhattanDistance(p, sensor.loc);
+        return sensor.manhattan >= mDist;
+      })
+    ) {
+      count++;
+    }
   }
-}
+  return count;
+};
 
-// max and mix x are calculated not by loc + manhattan, but by whatever their highest/lowest value on targetRow would be
-
-console.log({ count, minX, maxX });
-// console.log("Part 1", countCorrectOrder(parseIntoPackets(input)));
+console.log("Part 1", countOfPointsWithoutBeacons(sensors, targetRow));
 // console.log("Part 2", reOrderPackets(input));
